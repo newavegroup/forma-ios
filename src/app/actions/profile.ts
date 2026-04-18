@@ -32,7 +32,7 @@ export async function upsertProfile(
 ): Promise<{ error?: string; success?: boolean }> {
   const parsed = profileSchema.safeParse(data);
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message };
+    return { error: parsed.error.issues[0].message };
   }
 
   try {

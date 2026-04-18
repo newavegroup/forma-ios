@@ -34,7 +34,7 @@ export async function register(formData: {
 }): Promise<{ error?: string }> {
   const parsed = registerSchema.safeParse(formData);
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message };
+    return { error: parsed.error.issues[0].message };
   }
 
   const { email, password, name } = parsed.data;
@@ -77,7 +77,7 @@ export async function login(formData: {
 }): Promise<{ error?: string }> {
   const parsed = loginSchema.safeParse(formData);
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message };
+    return { error: parsed.error.issues[0].message };
   }
 
   const { email, password } = parsed.data;
