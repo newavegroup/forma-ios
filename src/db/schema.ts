@@ -7,6 +7,8 @@ import {
   boolean,
   timestamp,
   jsonb,
+  date,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -76,6 +78,98 @@ export const checkIns = pgTable("check_ins", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ---------------------------------------------------------------------------
+// InBody / Nutrition OS tables
+// ---------------------------------------------------------------------------
+
+export const inbodyScans = pgTable("inbody_scans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  scanDate: date("scan_date").notNull(),
+  weightKg: numeric("weight_kg", { precision: 5, scale: 2 }).notNull(),
+  muscleMassKg: numeric("muscle_mass_kg", { precision: 5, scale: 2 }).notNull(),
+  bodyFatPercent: numeric("body_fat_percent", { precision: 5, scale: 2 }).notNull(),
+  bodyFatMassKg: numeric("body_fat_mass_kg", { precision: 5, scale: 2 }).notNull(),
+  visceralFat: integer("visceral_fat").notNull(),
+  pdfPath: text("pdf_path"),
+  parsedConfidence: text("parsed_confidence").notNull(), // 'high' | 'low'
+  flaggedFields: text("flagged_fields").array().notNull().default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const dailyTargets = pgTable(
+  "daily_targets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    effectiveDate: date("effective_date").notNull(),
+    proteinG: integer("protein_g").notNull(),
+    carbsGTraining: integer("carbs_g_training").notNull(),
+    carbsGRest: integer("carbs_g_rest").notNull(),
+    fatG: integer("fat_g").notNull(),
+    caloriesTraining: integer("calories_training").notNull(),
+    caloriesRest: integer("calories_rest").notNull(),
+    rationale: text("rationale"),
+    sourceScanId: uuid("source_scan_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.userId, t.effectiveDate)]
+);
+
+export const trainingSchedule = pgTable(
+  "training_schedule",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    date: date("date").notNull(),
+    isTrainingDay: boolean("is_training_day").default(false).notNull(),
+    trainingType: text("training_type"),
+    durationMin: integer("duration_min"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.userId, t.date)]
+);
+
+export const weeklyPlans = pgTable(
+  "weekly_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    weekStart: date("week_start").notNull(),
+    planJson: jsonb("plan_json").notNull(),
+    groceryListJson: jsonb("grocery_list_json"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.userId, t.weekStart)]
+);
+
+export const mealLogs = pgTable("meal_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  loggedAt: timestamp("logged_at").defaultNow().notNull(),
+  isTrainingDay: boolean("is_training_day").notNull(),
+  rawInput: text("raw_input").notNull(),
+  estimatedProteinG: numeric("estimated_protein_g", { precision: 6, scale: 1 }),
+  estimatedCarbsG: numeric("estimated_carbs_g", { precision: 6, scale: 1 }),
+  estimatedFatG: numeric("estimated_fat_g", { precision: 6, scale: 1 }),
+  estimatedCalories: integer("estimated_calories"),
+  confirmed: boolean("confirmed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const coachConversations = pgTable(
+  "coach_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    sessionDate: date("session_date").notNull(),
+    messagesJson: jsonb("messages_json").notNull().default([]),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.userId, t.sessionDate)]
+);
+
+// ---------------------------------------------------------------------------
 // Types for JSONB columns
 export type FoodItem = {
   name: string;
