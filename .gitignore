@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# InBody PDF fixtures (real health data, never commit)
+/tests/inbody/fixtures/*.pdf

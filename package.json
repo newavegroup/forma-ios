@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start -p ${PORT:-3000}"
+    "start": "next start -p $PORT"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/react": "^3.0.170",
+    "@anthropic-ai/sdk": "^0.90.0",
     "@react-pdf/renderer": "^4.5.1",
     "ai": "^6.0.168",
     "drizzle-orm": "^0.45.2",
@@ -24,10 +25,14 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.4",
     "drizzle-kit": "^0.31.10",
+    "pdf-parse": "^2.4.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.4"
   }
 }
