@@ -88,7 +88,7 @@ export async function visionExtract(
   let responseText: string;
   try {
     const message = await getClient().messages.create({
-      model: "claude-opus-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 512,
       messages: [
         {
@@ -115,7 +115,11 @@ export async function visionExtract(
     if (block.type !== "text") {
       throw new VisionFallbackError("Unexpected response type from Claude");
     }
-    responseText = block.text.trim();
+    responseText = block.text
+      .trim()
+      .replace(/^```(?:json)?\n?/m, "")
+      .replace(/\n?```$/m, "")
+      .trim();
   } catch (err) {
     if (err instanceof VisionFallbackError) throw err;
     throw new VisionFallbackError(

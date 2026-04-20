@@ -23,15 +23,24 @@ type DailyTargets = {
   protein_g: number;
   carbs_g_training: number;
   carbs_g_rest: number;
-  fat_g: number;
+  fat_g_rest: number;
+  fat_g_training: number;
   calories_training: number;
   calories_rest: number;
+};
+
+type Goal = "recomp" | "cut" | "bulk" | "maintenance";
+
+type GoalSettings = {
+  goal: Goal;
+  training_days_per_week: number;
 };
 
 type Screen =
   | { id: "upload" }
   | { id: "parsing" }
   | { id: "review"; scan: ParsedScan; pdfPath: string | null }
+  | { id: "goals"; scan: ParsedScan; pdfPath: string | null }
   | { id: "saving" }
   | { id: "success"; scanDate: string; targets: DailyTargets | null; rationale: string | null }
   | { id: "error"; message: string };
@@ -178,7 +187,8 @@ function ReviewScreen({
   pdfPath: string | null;
   onConfirm: (scan: ParsedScan, pdfPath: string | null) => void;
   onRetry: () => void;
-}) {
+})
+ {
   const [values, setValues] = useState<ParsedScan>({ ...scan });
   // Track which flagged fields have been touched by the user
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -336,7 +346,110 @@ function ReviewScreen({
             fontFamily: "var(--font-body)",
           }}
         >
-          {canSave ? "Save scan" : `Review ${pendingFlags.length} flagged field${pendingFlags.length > 1 ? "s" : ""}`}
+          {canSave ? "Next: set goal" : `Review ${pendingFlags.length} flagged field${pendingFlags.length > 1 ? "s" : ""}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Goals screen
+// ---------------------------------------------------------------------------
+
+const GOAL_OPTIONS: { value: Goal; label: string; desc: string }[] = [
+  { value: "recomp", label: "Body recomposition", desc: "Build muscle while losing fat — same calories, macro cycling" },
+  { value: "cut",    label: "Cut",                desc: "Lose fat in a caloric deficit while preserving muscle" },
+  { value: "bulk",   label: "Bulk",               desc: "Build muscle with a caloric surplus" },
+  { value: "maintenance", label: "Maintenance",   desc: "Maintain current weight and composition" },
+];
+
+function GoalsScreen({
+  onConfirm,
+  onBack,
+}: {
+  onConfirm: (settings: GoalSettings) => void;
+  onBack: () => void;
+}) {
+  const [goal, setGoal] = useState<Goal>("recomp");
+  const [trainingDays, setTrainingDays] = useState(4);
+
+  return (
+    <div className="max-w-xl mx-auto space-y-6">
+      <div>
+        <h1
+          className="text-2xl font-bold tracking-tight"
+          style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
+        >
+          Your Goal
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: "var(--secondary)" }}>
+          This calibrates your macro targets to match your objective.
+        </p>
+      </div>
+
+      {/* Goal selector */}
+      <div className="space-y-2">
+        {GOAL_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setGoal(opt.value)}
+            className="w-full rounded-xl px-4 py-3.5 text-left transition-all"
+            style={{
+              backgroundColor: goal === opt.value ? "var(--primary-container)" : "var(--surface)",
+              border: `1px solid ${goal === opt.value ? "var(--primary)" : "var(--outline-variant)"}`,
+            }}
+          >
+            <p className="text-sm font-semibold" style={{ color: goal === opt.value ? "var(--primary)" : "var(--foreground)" }}>
+              {opt.label}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--secondary)" }}>{opt.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Training days */}
+      <div
+        className="rounded-xl px-5 py-4 space-y-3"
+        style={{ backgroundColor: "var(--surface)", border: "1px solid var(--outline-variant)" }}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Training days per week</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--secondary)" }}>Used to calculate TDEE activity multiplier</p>
+          </div>
+          <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--primary)" }}>
+            {trainingDays}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={7}
+          value={trainingDays}
+          onChange={(e) => setTrainingDays(parseInt(e.target.value))}
+          className="w-full accent-[var(--primary)]"
+        />
+        <div className="flex justify-between text-xs" style={{ color: "var(--secondary)" }}>
+          <span>0 (sedentary)</span>
+          <span>7 (daily)</span>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          onClick={onBack}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
+          style={{ backgroundColor: "var(--surface-highest)", color: "var(--secondary)", fontFamily: "var(--font-body)" }}
+        >
+          Back
+        </button>
+        <button
+          onClick={() => onConfirm({ goal, training_days_per_week: trainingDays })}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+          style={{ backgroundColor: "var(--primary)", color: "var(--background)", fontFamily: "var(--font-body)" }}
+        >
+          Calculate targets
         </button>
       </div>
     </div>
@@ -411,7 +524,7 @@ function SuccessScreen({
               {[
                 { label: "Calories", value: `${targets.calories_training}` },
                 { label: "Carbs", value: `${targets.carbs_g_training}g` },
-                { label: "Fat", value: `${targets.fat_g}g` },
+                { label: "Fat", value: `${targets.fat_g_training}g` },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">
                   <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>{value}</p>
@@ -428,7 +541,7 @@ function SuccessScreen({
               {[
                 { label: "Calories", value: `${targets.calories_rest}` },
                 { label: "Carbs", value: `${targets.carbs_g_rest}g` },
-                { label: "Fat", value: `${targets.fat_g}g` },
+                { label: "Fat", value: `${targets.fat_g_rest}g` },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">
                   <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>{value}</p>
@@ -511,14 +624,18 @@ export default function InBodyPage() {
     }
   }
 
-  async function handleConfirm(scan: ParsedScan, pdfPath: string | null) {
+  function handleReviewConfirm(scan: ParsedScan, pdfPath: string | null) {
+    setScreen({ id: "goals", scan, pdfPath });
+  }
+
+  async function handleConfirm(scan: ParsedScan, pdfPath: string | null, goalSettings: GoalSettings) {
     setScreen({ id: "saving" });
 
     try {
       const res = await fetch("/api/inbody/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...scan, pdf_path: pdfPath }),
+        body: JSON.stringify({ ...scan, pdf_path: pdfPath, ...goalSettings }),
       });
 
       const json = await res.json();
@@ -552,8 +669,15 @@ export default function InBodyPage() {
           <ReviewScreen
             scan={screen.scan}
             pdfPath={screen.pdfPath}
-            onConfirm={handleConfirm}
+            onConfirm={handleReviewConfirm}
             onRetry={() => setScreen({ id: "upload" })}
+          />
+        )}
+
+        {screen.id === "goals" && (
+          <GoalsScreen
+            onConfirm={(settings) => handleConfirm(screen.scan, screen.pdfPath, settings)}
+            onBack={() => setScreen({ id: "review", scan: screen.scan, pdfPath: screen.pdfPath })}
           />
         )}
 

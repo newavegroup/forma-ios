@@ -213,7 +213,7 @@ export function DashboardClient({ targets, todayTotals, scanEffectiveDate }: Pro
 // Inline quick-log component
 // ---------------------------------------------------------------------------
 
-type LogState = "idle" | "estimating" | "reviewing" | "saving" | "done";
+type LogState = "idle" | "estimating" | "reviewing" | "manual" | "saving" | "done";
 
 interface Estimate {
   mealName: string;
@@ -231,6 +231,7 @@ function QuickLog({ onLogged }: { onLogged: () => void }) {
   const [input, setInput] = useState("");
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manual, setManual] = useState({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleEstimate() {
@@ -250,7 +251,8 @@ function QuickLog({ onLogged }: { onLogged: () => void }) {
       setState("reviewing");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
-      setState("idle");
+      setManual((m) => ({ ...m, mealName: text }));
+      setState("manual");
     }
   }
 
@@ -280,10 +282,41 @@ function QuickLog({ onLogged }: { onLogged: () => void }) {
     }
   }
 
+  async function handleManualSave() {
+    const cal = parseInt(manual.calories) || 0;
+    const pro = parseInt(manual.protein) || 0;
+    const carb = parseInt(manual.carbs) || 0;
+    const fat = parseInt(manual.fat) || 0;
+    if (!manual.mealName.trim() || cal === 0) return;
+    setSaving(true);
+    const result = await createFoodLog({
+      mealName: manual.mealName.trim(),
+      foods: [],
+      totalCalories: cal,
+      totalProteinG: pro,
+      totalCarbsG: carb,
+      totalFatG: fat,
+    });
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+    } else {
+      setState("done");
+      setSaving(false);
+      setTimeout(() => {
+        setState("idle");
+        setInput("");
+        setManual({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+        onLogged();
+      }, 1200);
+    }
+  }
+
   function handleDiscard() {
     setState("idle");
     setEstimate(null);
     setError(null);
+    setManual({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
@@ -342,6 +375,72 @@ function QuickLog({ onLogged }: { onLogged: () => void }) {
             onClick={handleSave}
             disabled={saving}
             className="flex-1 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
+            style={{ backgroundColor: "var(--primary)", color: "var(--background)" }}
+          >
+            {saving ? "Saving..." : "Log this"}
+          </button>
+          <button
+            onClick={handleDiscard}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-70"
+            style={{ backgroundColor: "var(--surface-high)", color: "var(--secondary)" }}
+          >
+            Discard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "manual") {
+    const numField = (label: string, key: keyof typeof manual, unit: string) => (
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>{label}</label>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={0}
+            value={manual[key]}
+            onChange={(e) => setManual((m) => ({ ...m, [key]: e.target.value }))}
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ backgroundColor: "var(--surface-high)", border: "1px solid var(--outline-variant)", color: "var(--foreground)" }}
+          />
+          <span className="text-xs shrink-0" style={{ color: "var(--secondary)" }}>{unit}</span>
+        </div>
+      </div>
+    );
+    return (
+      <div
+        className="rounded-xl p-4 space-y-3"
+        style={{ backgroundColor: "var(--surface)", border: "1px solid var(--outline-variant)" }}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)", fontFamily: "var(--font-display)" }}>
+            Enter manually
+          </p>
+          <span className="text-xs" style={{ color: "var(--secondary)" }}>AI unavailable</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>Meal name</label>
+          <input
+            type="text"
+            value={manual.mealName}
+            onChange={(e) => setManual((m) => ({ ...m, mealName: e.target.value }))}
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ backgroundColor: "var(--surface-high)", border: "1px solid var(--outline-variant)", color: "var(--foreground)" }}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {numField("Calories", "calories", "kcal")}
+          {numField("Protein", "protein", "g")}
+          {numField("Carbs", "carbs", "g")}
+          {numField("Fat", "fat", "g")}
+        </div>
+        {error && <p className="text-xs" style={{ color: "var(--danger)" }}>{error}</p>}
+        <div className="flex gap-2">
+          <button
+            onClick={handleManualSave}
+            disabled={saving || !manual.mealName.trim() || !manual.calories}
+            className="flex-1 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
             style={{ backgroundColor: "var(--primary)", color: "var(--background)" }}
           >
             {saving ? "Saving..." : "Log this"}
