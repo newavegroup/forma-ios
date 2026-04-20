@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/app/lib/session";
 import { db } from "@/db";
 import { inbodyScans, dailyTargets } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { calibrate } from "../../../../../lib/calibration/engine";
 import type { Goal } from "../../../../../types/calibration";
@@ -16,7 +17,6 @@ const confirmSchema = z.object({
   parsed_confidence: z.enum(["high", "low"]),
   flagged_fields: z.array(z.string()).optional(),
   pdf_path: z.string().nullable().optional(),
-  // Calibration inputs supplied by the client (from onboarding / profile)
   goal: z.enum(["recomp", "cut", "bulk", "maintenance"]).default("recomp"),
   training_days_per_week: z.number().int().min(0).max(7).default(4),
 });
@@ -43,17 +43,9 @@ export async function POST(request: NextRequest) {
   }
 
   const {
-    scan_date,
-    weight_kg,
-    muscle_mass_kg,
-    body_fat_percent,
-    body_fat_mass_kg,
-    visceral_fat,
-    parsed_confidence,
-    flagged_fields,
-    pdf_path,
-    goal,
-    training_days_per_week,
+    scan_date, weight_kg, muscle_mass_kg, body_fat_percent,
+    body_fat_mass_kg, visceral_fat, parsed_confidence, flagged_fields,
+    pdf_path, goal, training_days_per_week,
   } = parsed.data;
 
   // Insert scan
@@ -73,7 +65,7 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  // Run calibration engine and persist targets
+  // Run calibration engine
   const calibration = calibrate({
     weight_kg,
     muscle_mass_kg,
@@ -82,47 +74,42 @@ export async function POST(request: NextRequest) {
     training_days_per_week,
   });
 
-  let savedTargets = null;
-  if (calibration.success && calibration.targets) {
-    const t = calibration.targets;
-    const today = new Date().toISOString().split("T")[0];
+  const targets = calibration.success ? (calibration.targets ?? null) : null;
 
-    const [inserted] = await db
-      .insert(dailyTargets)
-      .values({
+  // Persist targets (delete + insert to avoid unnamed unique constraint issues)
+  if (targets) {
+    const today = new Date().toISOString().split("T")[0];
+    try {
+      await db
+        .delete(dailyTargets)
+        .where(
+          and(
+            eq(dailyTargets.userId, session.userId),
+            eq(dailyTargets.effectiveDate, today)
+          )
+        );
+      await db.insert(dailyTargets).values({
         userId: session.userId,
         effectiveDate: today,
-        proteinG: t.protein_g,
-        carbsGTraining: t.carbs_g_training,
-        carbsGRest: t.carbs_g_rest,
-        fatG: t.fat_g,
-        caloriesTraining: t.calories_training,
-        caloriesRest: t.calories_rest,
-        rationale: t.rationale,
+        proteinG: targets.protein_g,
+        carbsGTraining: targets.carbs_g_training,
+        carbsGRest: targets.carbs_g_rest,
+        fatG: targets.fat_g,
+        caloriesTraining: targets.calories_training,
+        caloriesRest: targets.calories_rest,
+        rationale: targets.rationale,
         sourceScanId: scan.id,
-      })
-      .onConflictDoUpdate({
-        target: [dailyTargets.userId, dailyTargets.effectiveDate],
-        set: {
-          proteinG: t.protein_g,
-          carbsGTraining: t.carbs_g_training,
-          carbsGRest: t.carbs_g_rest,
-          fatG: t.fat_g,
-          caloriesTraining: t.calories_training,
-          caloriesRest: t.calories_rest,
-          rationale: t.rationale,
-          sourceScanId: scan.id,
-        },
-      })
-      .returning();
-
-    savedTargets = inserted;
+      });
+    } catch (err) {
+      console.error("Failed to persist daily_targets:", err);
+      // Non-fatal — targets still returned to client
+    }
   }
 
   return NextResponse.json({
     success: true,
     scan,
-    targets: savedTargets,
-    rationale: calibration.targets?.rationale ?? null,
+    targets,
+    rationale: targets?.rationale ?? null,
   });
 }
