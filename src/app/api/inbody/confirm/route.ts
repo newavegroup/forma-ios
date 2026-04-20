@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/app/lib/session";
 import { db } from "@/db";
-import { inbodyScans } from "@/db/schema";
+import { inbodyScans, dailyTargets } from "@/db/schema";
 import { z } from "zod";
+import { calibrate } from "../../../../../lib/calibration/engine";
+import type { Goal } from "../../../../../types/calibration";
 
 const confirmSchema = z.object({
   scan_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -14,6 +16,9 @@ const confirmSchema = z.object({
   parsed_confidence: z.enum(["high", "low"]),
   flagged_fields: z.array(z.string()).optional(),
   pdf_path: z.string().nullable().optional(),
+  // Calibration inputs supplied by the client (from onboarding / profile)
+  goal: z.enum(["recomp", "cut", "bulk", "maintenance"]).default("recomp"),
+  training_days_per_week: z.number().int().min(0).max(7).default(4),
 });
 
 export async function POST(request: NextRequest) {
@@ -47,8 +52,11 @@ export async function POST(request: NextRequest) {
     parsed_confidence,
     flagged_fields,
     pdf_path,
+    goal,
+    training_days_per_week,
   } = parsed.data;
 
+  // Insert scan
   const [scan] = await db
     .insert(inbodyScans)
     .values({
@@ -65,5 +73,56 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  return NextResponse.json({ success: true, scan });
+  // Run calibration engine and persist targets
+  const calibration = calibrate({
+    weight_kg,
+    muscle_mass_kg,
+    body_fat_mass_kg,
+    goal: goal as Goal,
+    training_days_per_week,
+  });
+
+  let savedTargets = null;
+  if (calibration.success && calibration.targets) {
+    const t = calibration.targets;
+    const today = new Date().toISOString().split("T")[0];
+
+    const [inserted] = await db
+      .insert(dailyTargets)
+      .values({
+        userId: session.userId,
+        effectiveDate: today,
+        proteinG: t.protein_g,
+        carbsGTraining: t.carbs_g_training,
+        carbsGRest: t.carbs_g_rest,
+        fatG: t.fat_g,
+        caloriesTraining: t.calories_training,
+        caloriesRest: t.calories_rest,
+        rationale: t.rationale,
+        sourceScanId: scan.id,
+      })
+      .onConflictDoUpdate({
+        target: [dailyTargets.userId, dailyTargets.effectiveDate],
+        set: {
+          proteinG: t.protein_g,
+          carbsGTraining: t.carbs_g_training,
+          carbsGRest: t.carbs_g_rest,
+          fatG: t.fat_g,
+          caloriesTraining: t.calories_training,
+          caloriesRest: t.calories_rest,
+          rationale: t.rationale,
+          sourceScanId: scan.id,
+        },
+      })
+      .returning();
+
+    savedTargets = inserted;
+  }
+
+  return NextResponse.json({
+    success: true,
+    scan,
+    targets: savedTargets,
+    rationale: calibration.targets?.rationale ?? null,
+  });
 }

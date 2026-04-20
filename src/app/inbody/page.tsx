@@ -19,12 +19,21 @@ type ParsedScan = {
   flagged_fields?: string[];
 };
 
+type DailyTargets = {
+  protein_g: number;
+  carbs_g_training: number;
+  carbs_g_rest: number;
+  fat_g: number;
+  calories_training: number;
+  calories_rest: number;
+};
+
 type Screen =
   | { id: "upload" }
   | { id: "parsing" }
   | { id: "review"; scan: ParsedScan; pdfPath: string | null }
   | { id: "saving" }
-  | { id: "success"; scanDate: string }
+  | { id: "success"; scanDate: string; targets: DailyTargets | null; rationale: string | null }
   | { id: "error"; message: string };
 
 // ---------------------------------------------------------------------------
@@ -338,46 +347,126 @@ function ReviewScreen({
 // Success screen
 // ---------------------------------------------------------------------------
 
-function SuccessScreen({ scanDate, onNew }: { scanDate: string; onNew: () => void }) {
+function SuccessScreen({
+  scanDate,
+  targets,
+  rationale,
+  onNew,
+}: {
+  scanDate: string;
+  targets: DailyTargets | null;
+  rationale: string | null;
+  onNew: () => void;
+}) {
   const router = useRouter();
   return (
-    <div className="max-w-xl mx-auto flex flex-col items-center gap-6 py-16 text-center">
-      <div
-        className="w-16 h-16 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: "rgba(63,185,80,0.15)" }}
-      >
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
+    <div className="max-w-xl mx-auto space-y-6 py-8">
+      {/* Header */}
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div
+          className="w-14 h-14 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: "rgba(63,185,80,0.15)" }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div>
+          <p className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
+            Scan saved
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--secondary)" }}>
+            InBody from {scanDate} — targets calibrated.
+          </p>
+        </div>
       </div>
-      <div>
-        <p className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
-          Scan saved
-        </p>
-        <p className="mt-1 text-sm" style={{ color: "var(--secondary)" }}>
-          InBody scan from {scanDate} has been added to your history.
-        </p>
-      </div>
-      <div className="flex gap-3 w-full">
+
+      {/* Targets reveal */}
+      {targets && (
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: "1px solid var(--outline-variant)" }}
+        >
+          <div className="px-5 py-3" style={{ backgroundColor: "var(--surface-high)" }}>
+            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--secondary)" }}>
+              Your daily targets
+            </p>
+          </div>
+
+          {/* Protein — same both days */}
+          <div className="px-5 py-4" style={{ backgroundColor: "var(--surface)", borderBottom: "1px solid var(--outline-variant)" }}>
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>Protein</p>
+              <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--primary)" }}>
+                {targets.protein_g}g
+              </p>
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "var(--secondary)" }}>Same on training and rest days</p>
+          </div>
+
+          {/* Training day */}
+          <div className="px-5 py-4" style={{ backgroundColor: "var(--surface)", borderBottom: "1px solid var(--outline-variant)" }}>
+            <p className="text-xs font-semibold mb-3" style={{ color: "var(--accent)" }}>Training days</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Calories", value: `${targets.calories_training}` },
+                { label: "Carbs", value: `${targets.carbs_g_training}g` },
+                { label: "Fat", value: `${targets.fat_g}g` },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center">
+                  <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>{value}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--secondary)" }}>{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rest day */}
+          <div className="px-5 py-4" style={{ backgroundColor: "var(--surface)" }}>
+            <p className="text-xs font-semibold mb-3" style={{ color: "var(--secondary)" }}>Rest days</p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Calories", value: `${targets.calories_rest}` },
+                { label: "Carbs", value: `${targets.carbs_g_rest}g` },
+                { label: "Fat", value: `${targets.fat_g}g` },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center">
+                  <p className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>{value}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--secondary)" }}>{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rationale */}
+      {rationale && (
+        <div
+          className="rounded-xl px-4 py-3 text-xs leading-relaxed"
+          style={{
+            backgroundColor: "var(--surface)",
+            border: "1px solid var(--outline-variant)",
+            color: "var(--secondary)",
+          }}
+        >
+          {rationale}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3">
         <button
           onClick={onNew}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-          style={{
-            backgroundColor: "var(--surface-highest)",
-            color: "var(--secondary)",
-            fontFamily: "var(--font-body)",
-          }}
+          style={{ backgroundColor: "var(--surface-highest)", color: "var(--secondary)", fontFamily: "var(--font-body)" }}
         >
           Upload another
         </button>
         <button
           onClick={() => router.push("/")}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-          style={{
-            backgroundColor: "var(--primary)",
-            color: "var(--background)",
-            fontFamily: "var(--font-body)",
-          }}
+          style={{ backgroundColor: "var(--primary)", color: "var(--background)", fontFamily: "var(--font-body)" }}
         >
           Go to dashboard
         </button>
@@ -439,7 +528,12 @@ export default function InBodyPage() {
         return;
       }
 
-      setScreen({ id: "success", scanDate: scan.scan_date });
+      setScreen({
+        id: "success",
+        scanDate: scan.scan_date,
+        targets: json.targets ?? null,
+        rationale: json.rationale ?? null,
+      });
     } catch {
       setScreen({ id: "error", message: "Network error — please try again" });
     }
@@ -476,6 +570,8 @@ export default function InBodyPage() {
         {screen.id === "success" && (
           <SuccessScreen
             scanDate={screen.scanDate}
+            targets={screen.targets}
+            rationale={screen.rationale}
             onNew={() => setScreen({ id: "upload" })}
           />
         )}
