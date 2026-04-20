@@ -1,18 +1,37 @@
 @import "tailwindcss";
 
 :root {
-  --background:       #0d1117;
-  --surface-low:      #161b22;
-  --surface:          #1c2128;
-  --surface-high:     #22272e;
-  --surface-highest:  #2d333b;
-  --primary:          #58a6ff;
-  --primary-container:#1f6feb;
-  --accent:           #3fb950;
-  --foreground:       #e6edf3;
-  --secondary:        #8b949e;
-  --outline-variant:  rgba(139,148,158,0.15);
-  --danger:           #f85149;
+  /* Design system — dark, athletic */
+  --background:       #0A0B0D;
+  --surface-low:      #14161A;
+  --surface:          #1C1F24;
+  --surface-high:     #1F2228;
+  --surface-highest:  #2A2F38;
+
+  /* Primary action = accent lime */
+  --primary:          #D4FF3A;
+  --primary-dim:      rgba(212, 255, 58, 0.12);
+  --primary-muted:    #8AA328;
+
+  /* Semantic */
+  --accent:           #5EE49E;
+  --warning:          #F5B841;
+  --danger:           #F56565;
+
+  /* Text */
+  --foreground:       #F5F6F7;
+  --secondary:        #A8ADB6;
+  --tertiary:         #6B7280;
+  --disabled:         #3A3F47;
+
+  /* Borders */
+  --outline-variant:  rgba(255, 255, 255, 0.06);
+  --border-default:   rgba(255, 255, 255, 0.10);
+  --border-strong:    rgba(255, 255, 255, 0.18);
+
+  /* Fonts */
+  --font-display: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body:    var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -23,16 +42,25 @@
   --color-surface-high:      var(--surface-high);
   --color-surface-highest:   var(--surface-highest);
   --color-primary:           var(--primary);
-  --color-primary-container: var(--primary-container);
   --color-accent:            var(--accent);
   --color-secondary:         var(--secondary);
   --color-outline-variant:   var(--outline-variant);
   --color-danger:            var(--danger);
-  --font-display: var(--font-epilogue);
-  --font-body:    var(--font-manrope);
+  --font-display: var(--font-space-grotesk);
+  --font-body:    var(--font-inter);
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

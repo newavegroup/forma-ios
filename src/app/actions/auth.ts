@@ -68,7 +68,7 @@ export async function register(formData: {
     return { error: "Failed to create account. Please try again." };
   }
 
-  redirect("/");
+  redirect("/onboarding");
 }
 
 export async function login(formData: {

@@ -3,12 +3,27 @@
 import { useState } from "react";
 import { register, login } from "@/app/actions/auth";
 
+const C = {
+  canvas:   "#0A0B0D",
+  surface:  "#14161A",
+  subtle:   "#1F2228",
+  fg1:      "#F5F6F7",
+  fg2:      "#A8ADB6",
+  fg3:      "#6B7280",
+  fg4:      "#3A3F47",
+  accent:   "#D4FF3A",
+  danger:   "#F56565",
+  b1:       "rgba(255,255,255,0.06)",
+  b2:       "rgba(255,255,255,0.10)",
+};
+
 type Mode = "login" | "register";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,192 +49,258 @@ export default function LoginPage() {
     setLoading(false);
   }
 
+  function inputStyle(field: string) {
+    return {
+      width: "100%",
+      height: 52,
+      background: C.subtle,
+      border: `1px solid ${focusedField === field ? C.accent : error && field !== "name" ? C.b2 : C.b1}`,
+      borderRadius: 6,
+      padding: "0 14px",
+      fontFamily: "var(--font-body)",
+      fontSize: 15,
+      color: C.fg1,
+      outline: "none",
+      boxSizing: "border-box" as const,
+    };
+  }
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: "var(--background)" }}
+      style={{
+        minHeight: "100dvh",
+        background: C.canvas,
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "var(--font-body)",
+      }}
     >
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 mb-6">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-base font-bold"
-              style={{ backgroundColor: "var(--primary)", color: "var(--background)" }}
-            >
-              F
-            </div>
-            <span
-              className="text-2xl font-bold tracking-tight"
-              style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
-            >
-              Forma
-            </span>
-          </div>
+      {/* Logo */}
+      <div style={{ padding: "32px 24px 0" }}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 600,
+            fontSize: 22,
+            letterSpacing: "-0.03em",
+            color: C.fg1,
+          }}
+        >
+          Forma
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div
+        style={{
+          flex: 1,
+          padding: "48px 24px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: 32,
+          maxWidth: 480,
+          width: "100%",
+          margin: "0 auto",
+        }}
+      >
+        <div>
           <h1
-            className="text-xl font-semibold"
-            style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 500,
+              fontSize: "clamp(28px, 5vw, 36px)",
+              lineHeight: 1.05,
+              letterSpacing: "-0.03em",
+              color: C.fg1,
+              margin: 0,
+            }}
           >
-            {mode === "login" ? "Welcome back" : "Create your account"}
+            {mode === "register"
+              ? "A nutrition OS for hybrid athletes."
+              : "Welcome back."}
           </h1>
-          <p className="mt-1 text-sm" style={{ color: "var(--secondary)" }}>
-            {mode === "login"
-              ? "Sign in to your athlete dashboard"
-              : "Start tracking your hybrid athlete nutrition"}
+          <p
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: 15,
+              lineHeight: 1.55,
+              color: C.fg2,
+              margin: "14px 0 0",
+            }}
+          >
+            {mode === "register"
+              ? "Calibrated to your body. Adjusted every week. Logged in seconds."
+              : "Sign in to your athlete dashboard."}
           </p>
         </div>
 
-        {/* Card */}
-        <div
-          className="rounded-2xl p-8 space-y-5"
-          style={{
-            backgroundColor: "var(--surface)",
-            border: "1px solid var(--outline-variant)",
-          }}
-        >
-          {error && (
-            <div
-              className="rounded-lg px-4 py-3 text-sm"
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {mode === "register" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label
+                htmlFor="name"
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: C.fg2,
+                }}
+              >
+                Full name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                placeholder="Alex Johnson"
+                style={inputStyle("name")}
+                onFocus={() => setFocusedField("name")}
+                onBlur={() => setFocusedField(null)}
+              />
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="email"
               style={{
-                backgroundColor: "rgba(248,81,73,0.1)",
-                border: "1px solid rgba(248,81,73,0.3)",
-                color: "var(--danger)",
+                fontFamily: "var(--font-body)",
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: C.fg2,
               }}
             >
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="you@example.com"
+              style={inputStyle("email")}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
+            />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="password"
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: C.fg2,
+              }}
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
+              style={inputStyle("password")}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+            />
+          </div>
+
+          {error && (
+            <div
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: 13,
+                color: C.danger,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.danger} strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "register" && (
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="name"
-                  className="block text-sm font-medium"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  Full name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  placeholder="Alex Johnson"
-                  className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              height: 52,
+              borderRadius: 6,
+              border: 0,
+              background: loading ? C.fg4 : C.accent,
+              color: C.canvas,
+              fontFamily: "var(--font-body)",
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: loading ? "default" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              marginTop: 4,
+            }}
+          >
+            {loading ? (
+              <>
+                <div
                   style={{
-                    backgroundColor: "var(--surface-high)",
-                    border: "1px solid var(--outline-variant)",
-                    color: "var(--foreground)",
-                    fontFamily: "var(--font-body)",
+                    width: 16,
+                    height: 16,
+                    borderRadius: 9999,
+                    border: `2px solid ${C.canvas}`,
+                    borderTopColor: "transparent",
+                    animation: "spin 1s linear infinite",
                   }}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "var(--primary)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "var(--outline-variant)")
-                  }
                 />
-              </div>
+                {mode === "register" ? "Creating account" : "Signing in"}
+              </>
+            ) : mode === "register" ? (
+              "Create account"
+            ) : (
+              "Sign in"
             )}
+          </button>
+        </form>
+      </div>
 
-            <div className="space-y-1.5">
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium"
-                style={{ color: "var(--foreground)" }}
-              >
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="alex@example.com"
-                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--surface-high)",
-                  border: "1px solid var(--outline-variant)",
-                  color: "var(--foreground)",
-                  fontFamily: "var(--font-body)",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "var(--primary)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "var(--outline-variant)")
-                }
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium"
-                style={{ color: "var(--foreground)" }}
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
-                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
-                style={{
-                  backgroundColor: "var(--surface-high)",
-                  border: "1px solid var(--outline-variant)",
-                  color: "var(--foreground)",
-                  fontFamily: "var(--font-body)",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "var(--primary)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "var(--outline-variant)")
-                }
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
-              style={{
-                backgroundColor: "var(--primary)",
-                color: "var(--background)",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              {loading
-                ? "Please wait..."
-                : mode === "login"
-                ? "Sign in"
-                : "Create account"}
-            </button>
-          </form>
-
-          <div className="text-center">
-            <button
-              onClick={() => {
-                setMode(mode === "login" ? "register" : "login");
-                setError(null);
-              }}
-              className="text-sm transition-opacity hover:opacity-80"
-              style={{ color: "var(--primary)" }}
-            >
-              {mode === "login"
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
-          </div>
-        </div>
-
-        <p className="text-center text-xs" style={{ color: "var(--secondary)" }}>
-          Built for hybrid athletes — strength + endurance
-        </p>
+      {/* Footer */}
+      <div style={{ padding: "20px 24px 32px", maxWidth: 480, width: "100%", margin: "0 auto", textAlign: "center" }}>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setError(null);
+          }}
+          style={{
+            background: "transparent",
+            border: "none",
+            fontFamily: "var(--font-body)",
+            fontSize: 14,
+            color: C.fg2,
+            cursor: "pointer",
+          }}
+        >
+          {mode === "login" ? (
+            <>Don&apos;t have an account? <span style={{ color: C.fg1, fontWeight: 500 }}>Sign up</span></>
+          ) : (
+            <>Already have an account? <span style={{ color: C.fg1, fontWeight: 500 }}>Sign in</span></>
+          )}
+        </button>
       </div>
     </div>
   );
