@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "Forma — Nutrition for Hybrid Athletes",
   description:
     "Track nutrition, generate AI-powered meal plans, and monitor performance for hybrid athletes.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

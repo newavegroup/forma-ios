@@ -77,17 +77,8 @@ export default function LoginPage() {
     >
       {/* Logo */}
       <div style={{ padding: "32px 24px 0" }}>
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 600,
-            fontSize: 22,
-            letterSpacing: "-0.03em",
-            color: C.fg1,
-          }}
-        >
-          Forma
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Forma" style={{ height: 32, width: "auto" }} />
       </div>
 
       {/* Hero */}
