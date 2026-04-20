@@ -77,9 +77,9 @@ export default function LoginPage() {
     >
       {/* Logo */}
       <div style={{ padding: "32px 24px 0" }}>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none" style={{ height: 32, width: "auto" }}>
-          <text x="0" y="38" fontFamily="var(--font-display), 'Space Grotesk', sans-serif" fontSize="40" fontWeight="700" letterSpacing="-1.2" fill="#F5F6F7">Forma</text>
-          <circle cx="179" cy="10" r="5" fill="#D4FF3A" />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" fill="none" style={{ height: 28, width: "auto" }}>
+          <text x="0" y="54" fontFamily="var(--font-display), 'Space Grotesk', sans-serif" fontSize="56" fontWeight="700" letterSpacing="-0.03em" fill="#F5F6F7">Forma</text>
+          <circle cx="232" cy="18" r="6" fill="#D4FF3A" />
         </svg>
       </div>
 
