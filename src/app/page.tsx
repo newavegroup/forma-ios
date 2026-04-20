@@ -2,6 +2,7 @@ import { getSession } from "@/app/lib/session";
 import { getFoodLogs } from "@/app/actions/food-log";
 import { getCheckIns } from "@/app/actions/check-ins";
 import { getNutritionPlans } from "@/app/actions/plans";
+import { getDailyTargets } from "@/app/actions/targets";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
@@ -78,10 +79,11 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [allLogs, allCheckIns, allPlans] = await Promise.all([
+  const [allLogs, allCheckIns, allPlans, calibratedTargets] = await Promise.all([
     getFoodLogs(session.userId),
     getCheckIns(session.userId),
     getNutritionPlans(session.userId),
+    getDailyTargets(session.userId),
   ]);
 
   // Today's logs
@@ -98,12 +100,12 @@ export default async function DashboardPage() {
   const todayCarbs = todayLogs.reduce((s, l) => s + l.totalCarbsG, 0);
   const todayFat = todayLogs.reduce((s, l) => s + l.totalFatG, 0);
 
-  // Active plan targets
+  // Active plan targets — prefer calibrated InBody targets over scaffold plan
   const activePlan = allPlans[0];
-  const targetCals = activePlan?.calories ?? 2500;
-  const targetProtein = activePlan?.proteinG ?? 180;
-  const targetCarbs = activePlan?.carbsG ?? 280;
-  const targetFat = activePlan?.fatG ?? 70;
+  const targetCals = calibratedTargets?.caloriesTraining ?? activePlan?.calories ?? 2500;
+  const targetProtein = calibratedTargets?.proteinG ?? activePlan?.proteinG ?? 180;
+  const targetCarbs = calibratedTargets?.carbsGTraining ?? activePlan?.carbsG ?? 280;
+  const targetFat = calibratedTargets?.fatG ?? activePlan?.fatG ?? 70;
 
   // Latest check-in
   const latestCheckIn = allCheckIns[0];
@@ -220,9 +222,10 @@ export default async function DashboardPage() {
             sub="Latest check-in"
           />
           <StatCard
-            label="Active Plan"
-            value={activePlan ? "On" : "None"}
-            sub={activePlan?.title ?? "Generate a plan"}
+            label="Targets"
+            value={calibratedTargets ? `${calibratedTargets.proteinG}g` : activePlan ? "On" : "—"}
+            unit={calibratedTargets ? "protein" : undefined}
+            sub={calibratedTargets ? `${calibratedTargets.caloriesTraining} kcal training` : activePlan?.title ?? "Upload InBody scan"}
           />
         </div>
 
