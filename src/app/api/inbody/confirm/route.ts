@@ -94,7 +94,8 @@ export async function POST(request: NextRequest) {
         proteinG: targets.protein_g,
         carbsGTraining: targets.carbs_g_training,
         carbsGRest: targets.carbs_g_rest,
-        fatG: targets.fat_g,
+        fatG: targets.fat_g_rest,           // low-carb / rest day fat
+        fatGTraining: targets.fat_g_training, // high-carb / training day fat
         caloriesTraining: targets.calories_training,
         caloriesRest: targets.calories_rest,
         rationale: targets.rationale,

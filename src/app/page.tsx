@@ -6,38 +6,7 @@ import { getDailyTargets } from "@/app/actions/targets";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-
-function MacroBar({
-  label,
-  current,
-  target,
-  color,
-}: {
-  label: string;
-  current: number;
-  target: number;
-  color: string;
-}) {
-  const pct = Math.min(100, target > 0 ? Math.round((current / target) * 100) : 0);
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between items-baseline">
-        <span className="text-xs font-medium" style={{ color: "var(--secondary)", fontFamily: "var(--font-body)" }}>
-          {label}
-        </span>
-        <span className="text-xs" style={{ color: "var(--secondary)" }}>
-          {current}g / {target}g
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full" style={{ backgroundColor: "var(--surface-highest)" }}>
-        <div
-          className="h-1.5 rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  );
-}
+import { DayTypeMacros } from "@/components/day-type-macros";
 
 function StatCard({
   label,
@@ -96,24 +65,26 @@ export default async function DashboardPage() {
   });
 
   const todayCalories = todayLogs.reduce((s, l) => s + l.totalCalories, 0);
-  const todayProtein = todayLogs.reduce((s, l) => s + l.totalProteinG, 0);
-  const todayCarbs = todayLogs.reduce((s, l) => s + l.totalCarbsG, 0);
-  const todayFat = todayLogs.reduce((s, l) => s + l.totalFatG, 0);
+  const todayProtein  = todayLogs.reduce((s, l) => s + l.totalProteinG, 0);
+  const todayCarbs    = todayLogs.reduce((s, l) => s + l.totalCarbsG, 0);
+  const todayFat      = todayLogs.reduce((s, l) => s + l.totalFatG, 0);
 
-  // Active plan targets — prefer calibrated InBody targets over scaffold plan
+  // Targets — calibration drives both day types; fallback to plan or sensible defaults
   const activePlan = allPlans[0];
-  const targetCals = calibratedTargets?.caloriesTraining ?? activePlan?.calories ?? 2500;
-  const targetProtein = calibratedTargets?.proteinG ?? activePlan?.proteinG ?? 180;
-  const targetCarbs = calibratedTargets?.carbsGTraining ?? activePlan?.carbsG ?? 280;
-  const targetFat = calibratedTargets?.fatG ?? activePlan?.fatG ?? 70;
+  const macroTargets = {
+    protein:   calibratedTargets?.proteinG        ?? activePlan?.proteinG ?? 160,
+    carbsLow:  calibratedTargets?.carbsGRest      ?? activePlan?.carbsG   ?? 125,
+    carbsHigh: calibratedTargets?.carbsGTraining  ?? activePlan?.carbsG   ?? 240,
+    fatLow:    calibratedTargets?.fatG            ?? activePlan?.fatG     ?? 96,
+    fatHigh:   (calibratedTargets?.fatGTraining ?? calibratedTargets?.fatG ?? activePlan?.fatG ?? 44),
+    calories:  calibratedTargets?.caloriesTraining ?? activePlan?.calories ?? 2000,
+  };
 
   // Latest check-in
   const latestCheckIn = allCheckIns[0];
 
   // Recent logs (last 5)
   const recentLogs = allLogs.slice(0, 5);
-
-  const caloriesPct = Math.min(100, Math.round((todayCalories / targetCals) * 100));
 
   return (
     <AppShell>
@@ -144,62 +115,14 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {/* Calories ring + macros */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Calorie progress */}
-          <div
-            className="lg:col-span-1 rounded-xl p-6 flex flex-col items-center justify-center gap-4"
-            style={{ backgroundColor: "var(--surface)" }}
-          >
-            <div className="relative w-32 h-32">
-              <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
-                <circle
-                  cx="60" cy="60" r="50"
-                  fill="none"
-                  strokeWidth="10"
-                  stroke="var(--surface-highest)"
-                />
-                <circle
-                  cx="60" cy="60" r="50"
-                  fill="none"
-                  strokeWidth="10"
-                  stroke="var(--primary)"
-                  strokeLinecap="round"
-                  strokeDasharray={`${2 * Math.PI * 50}`}
-                  strokeDashoffset={`${2 * Math.PI * 50 * (1 - caloriesPct / 100)}`}
-                  className="transition-all duration-700"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
-                  {todayCalories}
-                </span>
-                <span className="text-xs" style={{ color: "var(--secondary)" }}>
-                  / {targetCals} kcal
-                </span>
-              </div>
-            </div>
-            <p className="text-sm font-medium" style={{ color: "var(--secondary)" }}>
-              Today&apos;s Calories
-            </p>
-          </div>
-
-          {/* Macros */}
-          <div
-            className="lg:col-span-2 rounded-xl p-6 flex flex-col justify-center space-y-5"
-            style={{ backgroundColor: "var(--surface)" }}
-          >
-            <p
-              className="text-sm font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
-            >
-              Macronutrients
-            </p>
-            <MacroBar label="Protein" current={todayProtein} target={targetProtein} color="var(--primary)" />
-            <MacroBar label="Carbohydrates" current={todayCarbs} target={targetCarbs} color="var(--accent)" />
-            <MacroBar label="Fat" current={todayFat} target={targetFat} color="#e3b341" />
-          </div>
-        </div>
+        {/* Day type toggle + calories ring + macros (client component) */}
+        <DayTypeMacros
+          targets={macroTargets}
+          todayCalories={todayCalories}
+          todayProtein={todayProtein}
+          todayCarbs={todayCarbs}
+          todayFat={todayFat}
+        />
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -225,7 +148,11 @@ export default async function DashboardPage() {
             label="Targets"
             value={calibratedTargets ? `${calibratedTargets.proteinG}g` : activePlan ? "On" : "—"}
             unit={calibratedTargets ? "protein" : undefined}
-            sub={calibratedTargets ? `${calibratedTargets.caloriesTraining} kcal training` : activePlan?.title ?? "Upload InBody scan"}
+            sub={
+              calibratedTargets
+                ? `${calibratedTargets.carbsGRest}g↔${calibratedTargets.carbsGTraining}g carbs`
+                : activePlan?.title ?? "Upload InBody scan"
+            }
           />
         </div>
 
@@ -314,17 +241,51 @@ export default async function DashboardPage() {
                 {activePlan ? "View all" : "Create plan"}
               </Link>
             </div>
-            {!activePlan ? (
+            {calibratedTargets ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="font-semibold text-base" style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}>
+                    Carb Cycling 3:1
+                  </p>
+                  <span
+                    className="inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium"
+                    style={{ backgroundColor: "var(--primary-container)", color: "var(--primary)" }}
+                  >
+                    InBody Calibrated
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Protein (both days)", value: `${calibratedTargets.proteinG}g` },
+                    { label: "Calories / day", value: `${calibratedTargets.caloriesTraining} kcal` },
+                    { label: "Carbs — Low day", value: `${calibratedTargets.carbsGRest}g` },
+                    { label: "Carbs — High day", value: `${calibratedTargets.carbsGTraining}g` },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-lg px-3 py-2"
+                      style={{ backgroundColor: "var(--surface-high)" }}
+                    >
+                      <p className="text-xs" style={{ color: "var(--secondary)" }}>{label}</p>
+                      <p className="text-sm font-semibold mt-0.5" style={{ color: "var(--foreground)" }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: "var(--secondary)" }}>
+                  {calibratedTargets.rationale?.slice(0, 120)}...
+                </p>
+              </div>
+            ) : !activePlan ? (
               <div className="py-8 text-center">
                 <p className="text-sm" style={{ color: "var(--secondary)" }}>
                   No nutrition plan active.
                 </p>
                 <Link
-                  href="/plans/new"
+                  href="/inbody"
                   className="mt-2 inline-block text-sm font-medium"
                   style={{ color: "var(--accent)" }}
                 >
-                  Generate AI plan
+                  Upload InBody scan to calibrate
                 </Link>
               </div>
             ) : (
@@ -359,9 +320,6 @@ export default async function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs" style={{ color: "var(--secondary)" }}>
-                  {(activePlan.meals as { name: string }[]).length} meals planned
-                </p>
               </div>
             )}
           </div>

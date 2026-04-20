@@ -11,13 +11,21 @@ export interface CalibrationInput {
   training_days_per_week: number;
 }
 
+/**
+ * Carb cycling targets — both day types target the same total calories.
+ * "Training" day = high-carb day (more carbs, less fat).
+ * "Rest" day = low-carb day (fewer carbs, more fat).
+ */
 export interface DailyTargets {
   protein_g: number;
-  carbs_g_training: number;
+  // Low-carb day (rest)
   carbs_g_rest: number;
-  fat_g: number;
-  calories_training: number;
+  fat_g_rest: number;
   calories_rest: number;
+  // High-carb day (training)
+  carbs_g_training: number;
+  fat_g_training: number;
+  calories_training: number;
   /** Plain-language explanation of how targets were derived */
   rationale: string;
 }

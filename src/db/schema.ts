@@ -106,10 +106,12 @@ export const dailyTargets = pgTable(
     proteinG: integer("protein_g").notNull(),
     carbsGTraining: integer("carbs_g_training").notNull(),
     carbsGRest: integer("carbs_g_rest").notNull(),
-    fatG: integer("fat_g").notNull(),
+    fatG: integer("fat_g").notNull(),          // low-carb / rest day fat
+    fatGTraining: integer("fat_g_training"),   // high-carb / training day fat (null = same as fatG)
     caloriesTraining: integer("calories_training").notNull(),
     caloriesRest: integer("calories_rest").notNull(),
     rationale: text("rationale"),
+    source: text("source").default("calibration"), // 'calibration' | 'manual'
     sourceScanId: uuid("source_scan_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
