@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { dailyTargets } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export async function getDailyTargets(userId: string) {
   const today = new Date().toISOString().split("T")[0];
