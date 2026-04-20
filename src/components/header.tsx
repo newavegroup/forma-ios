@@ -16,15 +16,10 @@ export function Header() {
         className="flex items-center gap-2"
         style={{ fontFamily: "var(--font-display)" }}
       >
-        <div
-          className="w-7 h-7 rounded-md flex items-center justify-center text-sm font-bold"
-          style={{ backgroundColor: "var(--primary)", color: "var(--background)" }}
-        >
-          F
-        </div>
-        <span className="font-semibold text-lg tracking-tight" style={{ color: "var(--foreground)" }}>
-          Forma
-        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" fill="none" style={{ height: 24, width: "auto" }}>
+          <text x="0" y="54" fontFamily="var(--font-display), 'Space Grotesk', sans-serif" fontSize="56" fontWeight="700" letterSpacing="-1.68" fill="#F5F6F7">Forma</text>
+          <circle cx="232" cy="18" r="6" fill="#D4FF3A" />
+        </svg>
       </Link>
 
       <div className="flex items-center gap-3">
