@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { getSession } from "@/app/lib/session";
+import { redirect } from "next/navigation";
 
 const profileSchema = z.object({
   age: z.number().int().min(10).max(100).optional(),
@@ -17,28 +19,40 @@ const profileSchema = z.object({
 
 export type ProfileData = z.infer<typeof profileSchema>;
 
-export async function getProfile(userId: string) {
+async function requireSession() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  return session;
+}
+
+export async function getProfile(_unused?: string) {
+  const session = await requireSession();
   const [profile] = await db
     .select()
     .from(profiles)
-    .where(eq(profiles.userId, userId))
+    .where(eq(profiles.userId, session.userId))
     .limit(1);
   return profile ?? null;
 }
 
 export async function upsertProfile(
-  userId: string,
+  _unused: string,
   data: ProfileData
 ): Promise<{ error?: string; success?: boolean }> {
+  const session = await requireSession();
   const parsed = profileSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
   try {
-    const existing = await getProfile(userId);
+    const existing = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, session.userId))
+      .limit(1);
 
-    if (existing) {
+    if (existing[0]) {
       await db
         .update(profiles)
         .set({
@@ -50,10 +64,10 @@ export async function upsertProfile(
           goal: parsed.data.goal,
           notes: parsed.data.notes,
         })
-        .where(eq(profiles.userId, userId));
+        .where(eq(profiles.userId, session.userId));
     } else {
       await db.insert(profiles).values({
-        userId,
+        userId: session.userId,
         age: parsed.data.age,
         weightKg: parsed.data.weightKg?.toString(),
         heightCm: parsed.data.heightCm?.toString(),
