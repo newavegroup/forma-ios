@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { foodLogs, type FoodItem } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
+import { getSession } from "@/app/lib/session";
+import { redirect } from "next/navigation";
 
 const foodItemSchema = z.object({
   name: z.string(),
@@ -27,18 +29,27 @@ const foodLogSchema = z.object({
 
 export type FoodLogData = z.infer<typeof foodLogSchema>;
 
-export async function getFoodLogs(userId: string) {
+async function requireSession() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  return session;
+}
+
+export async function getFoodLogs(userId?: string) {
+  const uid = userId ?? (await requireSession()).userId;
   return db
     .select()
     .from(foodLogs)
-    .where(eq(foodLogs.userId, userId))
+    .where(eq(foodLogs.userId, uid))
     .orderBy(desc(foodLogs.loggedAt));
 }
 
 export async function createFoodLog(
-  userId: string,
-  data: FoodLogData
+  data: FoodLogData,
+  userId?: string
 ): Promise<{ error?: string; id?: string }> {
+  const uid = userId ?? (await requireSession()).userId;
+
   const parsed = foodLogSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
@@ -48,7 +59,7 @@ export async function createFoodLog(
     const [log] = await db
       .insert(foodLogs)
       .values({
-        userId,
+        userId: uid,
         loggedAt: parsed.data.loggedAt
           ? new Date(parsed.data.loggedAt)
           : new Date(),
@@ -71,6 +82,7 @@ export async function createFoodLog(
 export async function deleteFoodLog(
   id: string
 ): Promise<{ error?: string; success?: boolean }> {
+  await requireSession();
   try {
     await db.delete(foodLogs).where(eq(foodLogs.id, id));
     return { success: true };

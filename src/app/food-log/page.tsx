@@ -16,7 +16,16 @@ type FoodItem = {
   fat: number;
 };
 
-const DEMO_USER_ID = "demo-user";
+type EstimatedMeal = {
+  mealName: string;
+  foods: FoodItem[];
+  totalCalories: number;
+  totalProteinG: number;
+  totalCarbsG: number;
+  totalFatG: number;
+  confidence: "high" | "medium" | "low";
+  notes?: string;
+};
 
 function MacroPill({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -109,51 +118,271 @@ function FoodLogCard({ log, onDelete }: { log: FoodLog; onDelete: (id: string) =
   );
 }
 
-type FoodEntry = { name: string; grams: string; calories: string; protein: string; carbs: string; fat: string };
+// ---------------------------------------------------------------------------
+// AI Log Form
+// ---------------------------------------------------------------------------
 
-const emptyFood = (): FoodEntry => ({ name: "", grams: "", calories: "", protein: "", carbs: "", fat: "" });
+type LogMode = "ai" | "manual";
 
-export default function FoodLogPage() {
-  const [logs, setLogs] = useState<FoodLog[]>([]);
-  const [showForm, setShowForm] = useState(false);
+type ManualFoodEntry = { name: string; grams: string; calories: string; protein: string; carbs: string; fat: string };
+const emptyFood = (): ManualFoodEntry => ({ name: "", grams: "", calories: "", protein: "", carbs: "", fat: "" });
+
+function ConfidenceBadge({ level }: { level: "high" | "medium" | "low" }) {
+  const styles = {
+    high: { bg: "rgba(56,189,120,0.1)", color: "var(--primary)" },
+    medium: { bg: "rgba(230,167,52,0.1)", color: "#e3b341" },
+    low: { bg: "rgba(248,81,73,0.1)", color: "var(--danger)" },
+  };
+  const { bg, color } = styles[level];
+  const labels = { high: "High confidence", medium: "Medium confidence", low: "Low confidence" };
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{ backgroundColor: bg, color }}
+    >
+      {labels[level]}
+    </span>
+  );
+}
+
+function AILogForm({ onSave }: { onSave: () => void }) {
+  const [description, setDescription] = useState("");
+  const [estimating, setEstimating] = useState(false);
+  const [estimated, setEstimated] = useState<EstimatedMeal | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleEstimate() {
+    if (!description.trim()) return;
+    setEstimating(true);
+    setEstimated(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/macro-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Estimation failed");
+      setEstimated({
+        mealName: data.estimate.mealName,
+        foods: data.estimate.foods,
+        totalCalories: data.estimate.totalCalories,
+        totalProteinG: data.estimate.totalProteinG,
+        totalCarbsG: data.estimate.totalCarbsG,
+        totalFatG: data.estimate.totalFatG,
+        confidence: data.estimate.confidence,
+        notes: data.estimate.notes,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setEstimating(false);
+    }
+  }
+
+  function updateEstimated(field: keyof Pick<EstimatedMeal, "totalCalories" | "totalProteinG" | "totalCarbsG" | "totalFatG" | "mealName">, value: string) {
+    if (!estimated) return;
+    setEstimated({
+      ...estimated,
+      [field]: field === "mealName" ? value : Number(value),
+    });
+  }
+
+  async function handleSave() {
+    if (!estimated) return;
+    setSaving(true);
+    setError(null);
+
+    const data: FoodLogData = {
+      mealName: estimated.mealName,
+      foods: estimated.foods,
+      totalCalories: estimated.totalCalories,
+      totalProteinG: estimated.totalProteinG,
+      totalCarbsG: estimated.totalCarbsG,
+      totalFatG: estimated.totalFatG,
+    };
+
+    const result = await createFoodLog(data);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setDescription("");
+      setEstimated(null);
+      onSave();
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Input */}
+      <div className="space-y-2">
+        <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>
+          Describe what you ate
+        </label>
+        <div className="flex gap-2">
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleEstimate();
+              }
+            }}
+            rows={2}
+            placeholder="e.g. grilled chicken breast, white rice, broccoli with olive oil"
+            className="flex-1 rounded-lg px-3 py-2 text-sm outline-none resize-none"
+            style={{
+              backgroundColor: "var(--surface-high)",
+              border: "1px solid var(--outline-variant)",
+              color: "var(--foreground)",
+            }}
+          />
+          <button
+            onClick={handleEstimate}
+            disabled={estimating || !description.trim()}
+            className="self-end px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
+            style={{
+              backgroundColor: "var(--accent)",
+              color: "var(--background)",
+              fontFamily: "var(--font-body)",
+              minWidth: "100px",
+            }}
+          >
+            {estimating ? (
+              <span className="flex items-center gap-1.5">
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Estimating
+              </span>
+            ) : "Estimate"}
+          </button>
+        </div>
+        <p className="text-xs" style={{ color: "var(--secondary)" }}>
+          Press Enter or click Estimate — AI will calculate macros
+        </p>
+      </div>
+
+      {error && (
+        <div
+          className="rounded-lg px-3 py-2 text-sm"
+          style={{
+            backgroundColor: "rgba(248,81,73,0.1)",
+            border: "1px solid rgba(248,81,73,0.3)",
+            color: "var(--danger)",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Result */}
+      {estimated && (
+        <div
+          className="rounded-xl p-4 space-y-4"
+          style={{
+            backgroundColor: "var(--surface-high)",
+            border: "1px solid var(--outline-variant)",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <input
+                value={estimated.mealName}
+                onChange={(e) => updateEstimated("mealName", e.target.value)}
+                className="font-semibold text-sm bg-transparent outline-none border-b border-transparent focus:border-current"
+                style={{ color: "var(--foreground)", fontFamily: "var(--font-display)" }}
+              />
+              <div className="flex items-center gap-2">
+                <ConfidenceBadge level={estimated.confidence} />
+              </div>
+            </div>
+            <p
+              className="text-2xl font-bold"
+              style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
+            >
+              {estimated.totalCalories} <span className="text-sm font-normal" style={{ color: "var(--secondary)" }}>kcal</span>
+            </p>
+          </div>
+
+          {estimated.notes && (
+            <p className="text-xs italic" style={{ color: "var(--secondary)" }}>
+              {estimated.notes}
+            </p>
+          )}
+
+          {/* Macro editors */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Protein", field: "totalProteinG" as const, value: estimated.totalProteinG, color: "var(--primary)" },
+              { label: "Carbs", field: "totalCarbsG" as const, value: estimated.totalCarbsG, color: "var(--accent)" },
+              { label: "Fat", field: "totalFatG" as const, value: estimated.totalFatG, color: "#e3b341" },
+            ].map(({ label, field, value, color }) => (
+              <div key={field} className="rounded-lg px-3 py-2 text-center" style={{ backgroundColor: "var(--surface)" }}>
+                <p className="text-xs mb-1" style={{ color: "var(--secondary)" }}>{label}</p>
+                <div className="flex items-baseline justify-center gap-0.5">
+                  <input
+                    type="number"
+                    value={value}
+                    onChange={(e) => updateEstimated(field, e.target.value)}
+                    min={0}
+                    className="w-14 text-center font-bold text-lg bg-transparent outline-none"
+                    style={{ color, fontFamily: "var(--font-display)" }}
+                  />
+                  <span className="text-xs" style={{ color: "var(--secondary)" }}>g</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Food breakdown */}
+          <div className="space-y-1">
+            <p className="text-xs font-medium" style={{ color: "var(--secondary)" }}>Breakdown</p>
+            <div className="rounded-lg overflow-hidden divide-y" style={{ backgroundColor: "var(--surface)" }}>
+              {estimated.foods.map((food, i) => (
+                <div key={i} className="px-3 py-2 flex justify-between items-center text-xs">
+                  <span style={{ color: "var(--foreground)" }}>{food.name} ({food.grams}g)</span>
+                  <span style={{ color: "var(--secondary)" }}>
+                    {food.calories} kcal · P{food.protein}g · C{food.carbs}g · F{food.fat}g
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
+            style={{
+              backgroundColor: "var(--primary)",
+              color: "var(--background)",
+              fontFamily: "var(--font-body)",
+            }}
+          >
+            {saving ? "Saving..." : "Log this meal"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManualLogForm({ onSave }: { onSave: () => void }) {
   const [mealName, setMealName] = useState("");
-  const [foods, setFoods] = useState<FoodEntry[]>([emptyFood()]);
+  const [foods, setFoods] = useState<ManualFoodEntry[]>([emptyFood()]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterToday, setFilterToday] = useState(true);
 
-  const loadLogs = useCallback(async () => {
-    const data = await getFoodLogs(DEMO_USER_ID);
-    setLogs(data);
-  }, []);
-
-  useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
-
-  const displayedLogs = filterToday
-    ? logs.filter((l) => {
-        const d = new Date(l.loggedAt);
-        const t = new Date();
-        return (
-          d.getFullYear() === t.getFullYear() &&
-          d.getMonth() === t.getMonth() &&
-          d.getDate() === t.getDate()
-        );
-      })
-    : logs;
-
-  function updateFood(i: number, field: keyof FoodEntry, value: string) {
+  function updateFood(i: number, field: keyof ManualFoodEntry, value: string) {
     setFoods((prev) => prev.map((f, idx) => (idx === i ? { ...f, [field]: value } : f)));
-  }
-
-  function addFoodRow() {
-    setFoods((prev) => [...prev, emptyFood()]);
-  }
-
-  function removeFoodRow(i: number) {
-    setFoods((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -188,28 +417,178 @@ export default function FoodLogPage() {
       notes: notes || undefined,
     };
 
-    const result = await createFoodLog(DEMO_USER_ID, data);
+    const result = await createFoodLog(data);
     if (result.error) {
       setError(result.error);
     } else {
-      setShowForm(false);
       setMealName("");
       setFoods([emptyFood()]);
       setNotes("");
-      loadLogs();
+      onSave();
     }
     setSaving(false);
   }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {error && (
+        <div
+          className="rounded-lg px-3 py-2 text-sm"
+          style={{
+            backgroundColor: "rgba(248,81,73,0.1)",
+            border: "1px solid rgba(248,81,73,0.3)",
+            color: "var(--danger)",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>Meal Name</label>
+        <input
+          value={mealName}
+          onChange={(e) => setMealName(e.target.value)}
+          required
+          placeholder="e.g. Pre-workout Breakfast"
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+          style={{
+            backgroundColor: "var(--surface-high)",
+            border: "1px solid var(--outline-variant)",
+            color: "var(--foreground)",
+          }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>Foods</label>
+        <div className="space-y-2">
+          <div className="grid grid-cols-7 gap-2 px-1">
+            {["Food", "Grams", "Cals", "Protein", "Carbs", "Fat", ""].map((h) => (
+              <p key={h} className="text-xs" style={{ color: "var(--secondary)" }}>{h}</p>
+            ))}
+          </div>
+          {foods.map((food, i) => (
+            <div key={i} className="grid grid-cols-7 gap-2 items-center">
+              {(["name", "grams", "calories", "protein", "carbs", "fat"] as (keyof ManualFoodEntry)[]).map((field) => (
+                <input
+                  key={field}
+                  value={food[field]}
+                  onChange={(e) => updateFood(i, field, e.target.value)}
+                  placeholder={field === "name" ? "Chicken" : "0"}
+                  type={field === "name" ? "text" : "number"}
+                  min={0}
+                  className="w-full rounded-md px-2 py-1.5 text-xs outline-none"
+                  style={{
+                    backgroundColor: "var(--surface-high)",
+                    border: "1px solid var(--outline-variant)",
+                    color: "var(--foreground)",
+                  }}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => setFoods((prev) => prev.filter((_, idx) => idx !== i))}
+                className="text-xs transition-opacity hover:opacity-70"
+                style={{ color: "var(--danger)" }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setFoods((prev) => [...prev, emptyFood()])}
+          className="text-xs font-medium mt-1 transition-opacity hover:opacity-70"
+          style={{ color: "var(--primary)" }}
+        >
+          + Add food
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>Notes (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          placeholder="Post-run recovery meal..."
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
+          style={{
+            backgroundColor: "var(--surface-high)",
+            border: "1px solid var(--outline-variant)",
+            color: "var(--foreground)",
+          }}
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={saving}
+        className="w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
+        style={{
+          backgroundColor: "var(--primary)",
+          color: "var(--background)",
+          fontFamily: "var(--font-body)",
+        }}
+      >
+        {saving ? "Saving..." : "Save Meal"}
+      </button>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
+export default function FoodLogPage() {
+  const [logs, setLogs] = useState<FoodLog[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [logMode, setLogMode] = useState<LogMode>("ai");
+  const [filterToday, setFilterToday] = useState(true);
+
+  const loadLogs = useCallback(async () => {
+    const data = await getFoodLogs();
+    setLogs(data);
+  }, []);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  const displayedLogs = filterToday
+    ? logs.filter((l) => {
+        const d = new Date(l.loggedAt);
+        const t = new Date();
+        return (
+          d.getFullYear() === t.getFullYear() &&
+          d.getMonth() === t.getMonth() &&
+          d.getDate() === t.getDate()
+        );
+      })
+    : logs;
 
   async function handleDelete(id: string) {
     await deleteFoodLog(id);
     loadLogs();
   }
 
-  const todayTotal = displayedLogs.reduce((s, l) => s + l.totalCalories, 0);
-  const todayProtein = displayedLogs.reduce((s, l) => s + l.totalProteinG, 0);
-  const todayCarbs = displayedLogs.reduce((s, l) => s + l.totalCarbsG, 0);
-  const todayFat = displayedLogs.reduce((s, l) => s + l.totalFatG, 0);
+  function handleSaved() {
+    setShowForm(false);
+    loadLogs();
+  }
+
+  const todayLogs = logs.filter((l) => {
+    const d = new Date(l.loggedAt);
+    const t = new Date();
+    return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+  });
+  const todayTotal = todayLogs.reduce((s, l) => s + l.totalCalories, 0);
+  const todayProtein = todayLogs.reduce((s, l) => s + l.totalProteinG, 0);
+  const todayCarbs = todayLogs.reduce((s, l) => s + l.totalCarbsG, 0);
+  const todayFat = todayLogs.reduce((s, l) => s + l.totalFatG, 0);
 
   return (
     <AppShell>
@@ -268,159 +647,64 @@ export default function FoodLogPage() {
 
         {/* Log form */}
         {showForm && (
-          <form
-            onSubmit={handleSubmit}
+          <div
             className="rounded-xl p-6 space-y-5"
             style={{
               backgroundColor: "var(--surface)",
               border: "1px solid var(--outline-variant)",
             }}
           >
-            <h2
-              className="font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
-            >
-              Log a Meal
-            </h2>
-
-            {error && (
-              <div
-                className="rounded-lg px-3 py-2 text-sm"
-                style={{
-                  backgroundColor: "rgba(248,81,73,0.1)",
-                  border: "1px solid rgba(248,81,73,0.3)",
-                  color: "var(--danger)",
-                }}
+            <div className="flex items-center justify-between">
+              <h2
+                className="font-semibold"
+                style={{ fontFamily: "var(--font-display)", color: "var(--foreground)" }}
               >
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>
-                Meal Name
-              </label>
-              <input
-                value={mealName}
-                onChange={(e) => setMealName(e.target.value)}
-                required
-                placeholder="e.g. Pre-workout Breakfast"
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                style={{
-                  backgroundColor: "var(--surface-high)",
-                  border: "1px solid var(--outline-variant)",
-                  color: "var(--foreground)",
-                }}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>
-                Foods
-              </label>
-              <div className="space-y-2">
-                {/* Column headers */}
-                <div className="grid grid-cols-7 gap-2 px-1">
-                  {["Food", "Grams", "Cals", "Protein", "Carbs", "Fat", ""].map((h) => (
-                    <p key={h} className="text-xs" style={{ color: "var(--secondary)" }}>{h}</p>
-                  ))}
-                </div>
-                {foods.map((food, i) => (
-                  <div key={i} className="grid grid-cols-7 gap-2 items-center">
-                    {(["name", "grams", "calories", "protein", "carbs", "fat"] as (keyof FoodEntry)[]).map(
-                      (field) => (
-                        <input
-                          key={field}
-                          value={food[field]}
-                          onChange={(e) => updateFood(i, field, e.target.value)}
-                          placeholder={field === "name" ? "Chicken breast" : "0"}
-                          type={field === "name" ? "text" : "number"}
-                          min={0}
-                          className="w-full rounded-md px-2 py-1.5 text-xs outline-none"
-                          style={{
-                            backgroundColor: "var(--surface-high)",
-                            border: "1px solid var(--outline-variant)",
-                            color: "var(--foreground)",
-                          }}
-                        />
-                      )
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeFoodRow(i)}
-                      className="text-xs transition-opacity hover:opacity-70"
-                      style={{ color: "var(--danger)" }}
-                    >
-                      ×
-                    </button>
-                  </div>
+                Log a Meal
+              </h2>
+              {/* Mode toggle */}
+              <div
+                className="flex rounded-lg overflow-hidden text-xs font-medium"
+                style={{ backgroundColor: "var(--surface-high)", border: "1px solid var(--outline-variant)" }}
+              >
+                {(["ai", "manual"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setLogMode(mode)}
+                    className="px-3 py-1.5 transition-colors"
+                    style={{
+                      backgroundColor: logMode === mode ? "var(--primary-container)" : "transparent",
+                      color: logMode === mode ? "var(--primary)" : "var(--secondary)",
+                    }}
+                  >
+                    {mode === "ai" ? "AI estimate" : "Manual"}
+                  </button>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={addFoodRow}
-                className="text-xs font-medium mt-1 transition-opacity hover:opacity-70"
-                style={{ color: "var(--primary)" }}
-              >
-                + Add food
-              </button>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium" style={{ color: "var(--secondary)" }}>
-                Notes (optional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                placeholder="Post-run recovery meal..."
-                className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-none"
-                style={{
-                  backgroundColor: "var(--surface-high)",
-                  border: "1px solid var(--outline-variant)",
-                  color: "var(--foreground)",
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
-              style={{
-                backgroundColor: "var(--primary)",
-                color: "var(--background)",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              {saving ? "Saving..." : "Save Meal"}
-            </button>
-          </form>
+            {logMode === "ai" ? (
+              <AILogForm onSave={handleSaved} />
+            ) : (
+              <ManualLogForm onSave={handleSaved} />
+            )}
+          </div>
         )}
 
         {/* Filter */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setFilterToday(true)}
-            className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
-            style={{
-              backgroundColor: filterToday ? "var(--primary-container)" : "var(--surface)",
-              color: filterToday ? "var(--primary)" : "var(--secondary)",
-            }}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setFilterToday(false)}
-            className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
-            style={{
-              backgroundColor: !filterToday ? "var(--primary-container)" : "var(--surface)",
-              color: !filterToday ? "var(--primary)" : "var(--secondary)",
-            }}
-          >
-            All logs
-          </button>
+          {(["today", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilterToday(f === "today")}
+              className="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: (f === "today") === filterToday ? "var(--primary-container)" : "var(--surface)",
+                color: (f === "today") === filterToday ? "var(--primary)" : "var(--secondary)",
+              }}
+            >
+              {f === "today" ? "Today" : "All logs"}
+            </button>
+          ))}
         </div>
 
         {/* Log list */}
