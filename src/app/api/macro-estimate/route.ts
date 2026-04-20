@@ -32,7 +32,14 @@ export async function POST(request: NextRequest) {
     const estimate = await estimateMacros(parsed.data.description);
     return NextResponse.json({ success: true, estimate });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "";
     console.error("Macro estimation failed:", err);
+    if (message.includes("API key") || message.includes("apiKey")) {
+      return NextResponse.json(
+        { error: "ANTHROPIC_API_KEY not configured. Add it in Railway → Variables." },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
       { error: "Estimation failed. Please try again." },
       { status: 500 }
