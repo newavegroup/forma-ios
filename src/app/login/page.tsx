@@ -77,8 +77,10 @@ export default function LoginPage() {
     >
       {/* Logo */}
       <div style={{ padding: "32px 24px 0" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Forma" style={{ height: 32, width: "auto" }} />
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none" style={{ height: 32, width: "auto" }}>
+          <text x="0" y="38" fontFamily="var(--font-display), 'Space Grotesk', sans-serif" fontSize="40" fontWeight="700" letterSpacing="-1.2" fill="#F5F6F7">Forma</text>
+          <circle cx="179" cy="10" r="5" fill="#D4FF3A" />
+        </svg>
       </div>
 
       {/* Hero */}
