@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getCheckIns, createCheckIn } from "@/app/actions/check-ins";
+import { AppShell } from "@/components/app-shell";
 import type { CheckInData } from "@/app/actions/check-ins";
 
 type CheckIn = Awaited<ReturnType<typeof getCheckIns>>[number];
-
-const DEMO_USER_ID = "demo-user";
 
 function ScoreBar({ value, max = 10, color }: { value: number | null; max?: number; color: string }) {
   const pct = value ? (value / max) * 100 : 0;
@@ -131,7 +130,7 @@ export default function CheckInsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadCheckIns = useCallback(async () => {
-    const data = await getCheckIns(DEMO_USER_ID);
+    const data = await getCheckIns();
     setCheckIns(data);
   }, []);
 
@@ -151,7 +150,7 @@ export default function CheckInsPage() {
       notes: notes || undefined,
     };
 
-    const result = await createCheckIn(DEMO_USER_ID, data);
+    const result = await createCheckIn("", data);
     if (result.error) {
       setError(result.error);
     } else {
@@ -171,6 +170,7 @@ export default function CheckInsPage() {
   const avgRecovery = last7.filter((c) => c.recoveryScore).reduce((s, c) => s + (c.recoveryScore ?? 0), 0) / (last7.filter((c) => c.recoveryScore).length || 1);
 
   return (
+    <AppShell>
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -350,5 +350,6 @@ export default function CheckInsPage() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }

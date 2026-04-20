@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { checkIns } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
+import { getSession } from "@/app/lib/session";
+import { redirect } from "next/navigation";
 
 const checkInSchema = z.object({
   date: z.string().datetime().optional(),
@@ -15,18 +17,26 @@ const checkInSchema = z.object({
 
 export type CheckInData = z.infer<typeof checkInSchema>;
 
-export async function getCheckIns(userId: string) {
+async function requireSession() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  return session;
+}
+
+export async function getCheckIns(_unused?: string) {
+  const session = await requireSession();
   return db
     .select()
     .from(checkIns)
-    .where(eq(checkIns.userId, userId))
+    .where(eq(checkIns.userId, session.userId))
     .orderBy(desc(checkIns.date));
 }
 
 export async function createCheckIn(
-  userId: string,
+  _unused: string,
   data: CheckInData
 ): Promise<{ error?: string; id?: string }> {
+  const session = await requireSession();
   const parsed = checkInSchema.safeParse(data);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
@@ -36,7 +46,7 @@ export async function createCheckIn(
     const [checkIn] = await db
       .insert(checkIns)
       .values({
-        userId,
+        userId: session.userId,
         date: parsed.data.date ? new Date(parsed.data.date) : new Date(),
         weightKg: parsed.data.weightKg?.toString(),
         energyLevel: parsed.data.energyLevel,
