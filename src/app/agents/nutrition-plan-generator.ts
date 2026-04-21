@@ -1,9 +1,10 @@
 "use server";
 
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateObject } from "ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { ProfileData } from "@/app/actions/profile";
+
+const client = new Anthropic();
 
 const MealFoodSchema = z.object({
   name: z.string().describe("Food item name"),
@@ -87,13 +88,74 @@ Requirements:
 - Make the plan practical for a busy athlete`;
 
   try {
-    const { object } = await generateObject({
-      model: anthropic("claude-sonnet-4-6"),
-      schema: NutritionPlanSchema,
-      prompt,
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      tools: [
+        {
+          name: "generate_nutrition_plan",
+          description: "Generate a structured daily nutrition plan for an athlete",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              title: { type: "string" },
+              summary: { type: "string" },
+              calories: { type: "number" },
+              proteinG: { type: "number" },
+              carbsG: { type: "number" },
+              fatG: { type: "number" },
+              meals: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    time: { type: "string" },
+                    calories: { type: "number" },
+                    proteinG: { type: "number" },
+                    carbsG: { type: "number" },
+                    fatG: { type: "number" },
+                    notes: { type: "string" },
+                    foods: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          name: { type: "string" },
+                          amount: { type: "string" },
+                          calories: { type: "number" },
+                          proteinG: { type: "number" },
+                          carbsG: { type: "number" },
+                          fatG: { type: "number" },
+                        },
+                        required: ["name", "amount", "calories", "proteinG", "carbsG", "fatG"],
+                      },
+                    },
+                  },
+                  required: ["name", "calories", "proteinG", "carbsG", "fatG", "foods"],
+                },
+              },
+              coachingTips: { type: "array", items: { type: "string" } },
+            },
+            required: ["title", "summary", "calories", "proteinG", "carbsG", "fatG", "meals", "coachingTips"],
+          },
+        },
+      ],
+      tool_choice: { type: "tool", name: "generate_nutrition_plan" },
+      messages: [{ role: "user", content: prompt }],
     });
 
-    return { plan: object as GeneratedNutritionPlan };
+    const toolUse = response.content.find((c) => c.type === "tool_use");
+    if (!toolUse || toolUse.type !== "tool_use") {
+      return { error: "No plan generated." };
+    }
+
+    const parsed = NutritionPlanSchema.safeParse(toolUse.input);
+    if (!parsed.success) {
+      return { error: `Invalid plan structure: ${parsed.error.issues[0].message}` };
+    }
+
+    return { plan: parsed.data };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("Plan generation error:", msg);
