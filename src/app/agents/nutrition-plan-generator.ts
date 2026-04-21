@@ -95,7 +95,8 @@ Requirements:
 
     return { plan: object as GeneratedNutritionPlan };
   } catch (err) {
-    console.error("Plan generation error:", err);
-    return { error: "Failed to generate nutrition plan. Please try again." };
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Plan generation error:", msg);
+    return { error: `Generation failed: ${msg}` };
   }
 }
