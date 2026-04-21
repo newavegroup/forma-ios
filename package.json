@@ -12,18 +12,18 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.71",
-    "@ai-sdk/react": "^3.0.170",
+    "@ai-sdk/anthropic": "1",
+    "@ai-sdk/react": "1",
     "@anthropic-ai/sdk": "^0.90.0",
     "@react-pdf/renderer": "^4.5.1",
-    "ai": "^6.0.168",
+    "ai": "4",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.2",
     "next": "16.2.4",
+    "pdf-parse": "^2.4.5",
     "postgres": "^3.4.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "pdf-parse": "^2.4.5",
     "unpdf": "^1.6.0",
     "zod": "^4.3.6"
   },

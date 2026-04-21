@@ -93,7 +93,7 @@ Requirements:
       prompt,
     });
 
-    return { plan: object };
+    return { plan: object as GeneratedNutritionPlan };
   } catch (err) {
     console.error("Plan generation error:", err);
     return { error: "Failed to generate nutrition plan. Please try again." };
