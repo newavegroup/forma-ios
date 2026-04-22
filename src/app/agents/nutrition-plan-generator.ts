@@ -22,7 +22,7 @@ const MealSchema = z.object({
   proteinG: z.number(),
   carbsG: z.number(),
   fatG: z.number(),
-  foods: z.array(MealFoodSchema).min(2),
+  foods: z.array(MealFoodSchema).min(1),
   notes: z.string().optional().describe("Brief coaching note for this meal"),
 });
 
