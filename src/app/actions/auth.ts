@@ -82,6 +82,15 @@ export async function login(formData: {
 
   const { email, password } = parsed.data;
 
+  // Dev bypass — hardcoded local credentials
+  if (process.env.NODE_ENV !== "production") {
+    if (email === "jaime@forma.app" && password === "forma2024") {
+      const token = await createSession({ userId: "dev-user", email, name: "Jaime" });
+      await setSessionCookie(token);
+      redirect("/");
+    }
+  }
+
   try {
     const [user] = await db
       .select()
