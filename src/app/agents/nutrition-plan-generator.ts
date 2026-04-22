@@ -37,7 +37,7 @@ const NutritionPlanSchema = z.object({
   coachingTips: z
     .array(z.string())
     .min(3)
-    .max(5)
+    .max(8)
     .describe("Sport-specific nutrition coaching tips"),
 });
 
@@ -137,7 +137,7 @@ Requirements:
                   required: ["name", "calories", "proteinG", "carbsG", "fatG", "foods"],
                 },
               },
-              coachingTips: { type: "array", items: { type: "string" } },
+              coachingTips: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
             },
             required: ["title", "summary", "calories", "proteinG", "carbsG", "fatG", "meals", "coachingTips"],
           },
