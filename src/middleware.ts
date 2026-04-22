@@ -7,7 +7,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 // Paths that don't require auth
-const PUBLIC_PREFIXES = ["/login", "/api/auth"];
+const PUBLIC_PREFIXES = ["/", "/login", "/api/auth"];
 
 // Static assets matcher — never protected
 const STATIC_PATTERN = /^\/_next\/|^\/favicon|\.ico$|\.png$|\.jpg$|\.svg$/;
