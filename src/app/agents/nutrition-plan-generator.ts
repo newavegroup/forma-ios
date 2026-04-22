@@ -33,7 +33,7 @@ const NutritionPlanSchema = z.object({
   proteinG: z.number().int().describe("Total daily protein in grams"),
   carbsG: z.number().int().describe("Total daily carbohydrates in grams"),
   fatG: z.number().int().describe("Total daily fat in grams"),
-  meals: z.array(MealSchema).min(3).max(6),
+  meals: z.array(MealSchema).min(3).max(7),
   coachingTips: z
     .array(z.string())
     .min(3)
@@ -106,6 +106,8 @@ Requirements:
               fatG: { type: "number" },
               meals: {
                 type: "array",
+                minItems: 3,
+                maxItems: 7,
                 items: {
                   type: "object",
                   properties: {
