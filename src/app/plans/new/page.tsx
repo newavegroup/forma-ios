@@ -9,6 +9,8 @@ import type { GeneratedNutritionPlan } from "@/app/agents/nutrition-plan-generat
 const DEMO_USER_ID = "demo-user";
 
 const SPORTS = [
+  "HYROX",
+  "Hybrid Training",
   "Running",
   "Cycling",
   "Triathlon",
