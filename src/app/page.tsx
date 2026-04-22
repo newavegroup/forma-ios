@@ -6,10 +6,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { DashboardClient } from "@/components/dashboard-client";
+import { LandingPage } from "@/components/landing-page";
 
 export default async function DashboardPage() {
   const session = await getSession();
-  if (!session) redirect("/login");
+  if (!session) return <LandingPage />;
 
   const [allLogs, allCheckIns, calibratedTargets] = await Promise.all([
     getFoodLogs(session.userId),
